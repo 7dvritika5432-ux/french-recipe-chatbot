@@ -1,566 +1,485 @@
 
-import streamlit as st
-from recipes import recipes
-from audiorecorder import audiorecorder
-import speech_recognition as sr
-import hashlib
-import unicodedata
-import re
-from PIL import Image
-
-# ---------------- PAGE ----------------
-
-st.set_page_config(
-    page_title="Cuisinebot",
-    page_icon="🥐",
-    layout="wide"
-)
-
-st.title("🥐 Cuisinebot")
-st.write("Bienvenue sur notre cuisinebot !")
-st.write("Choisissez une recette ou dites son nom.")
-
-
-# ---------------- SESSION STATE ----------------
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "current_recipe" not in st.session_state:
-    st.session_state.current_recipe = None
-
-if "ingredient_results" not in st.session_state:
-    st.session_state.ingredient_results = []
-
-if "selected_ingredient_recipe" not in st.session_state:
-    st.session_state.selected_ingredient_recipe = None
-
-if "ingredient_searched" not in st.session_state:
-    st.session_state.ingredient_searched = False
-
-if "last_audio" not in st.session_state:
-    st.session_state.last_audio = ""
-
-
-# ---------------- RESIZE RECIPE IMAGES ----------------
-
-def get_sized_image(image_path):
-
-    with Image.open(image_path) as image:
-
-        image = image.convert("RGB")
-        image.thumbnail((600, 400), Image.LANCZOS)
-
-        canvas = Image.new("RGB", (600, 400), "white")
-
-        x = (600 - image.width) // 2
-        y = (400 - image.height) // 2
-
-        canvas.paste(image, (x, y))
-
-        return canvas
-
-
-# ---------------- RECIPE CATEGORIES ----------------
-
-categories = {
-    "🥐 Petit-déjeuner": [
-        "crepes",
-        "croissants",
-        "pain_perdu",
-        "pain_chocolat",
-        "brioche"
-    ],
-
-    "🍽️ Déjeuner": [
-        "ratatouille",
-        "quiche",
-        "croque_monsieur",
-        "salade_nicoise",
-        "tian"
-    ],
-
-    "🧁 Goûter": [
-        "madeleines",
-        "macarons",
-        "tarte_tatin",
-        "eclair",
-        "mousse_chocolat"
-    ],
-
-    "🍲 Dîner": [
-        "soupe_oignon",
-        "gratin",
-        "boeuf_bourguignon",
-        "coq_au_vin",
-        "veloute_potimarron"
-    ]
-}
-
-
-# ---------------- NORMALIZE TEXT ----------------
-
-def normalize_text(message):
-
-    message = message.lower()
-
-    # Handle French ligatures
-    message = message.replace("œ", "oe")
-    message = message.replace("æ", "ae")
-
-    message = unicodedata.normalize("NFD", message)
-
-    message = "".join(
-        character for character in message
-        if unicodedata.category(character) != "Mn"
-    )
-
-    # Remove punctuation and extra spaces
-    message = re.sub(r"[^a-z0-9\s]", " ", message)
-    message = re.sub(r"\s+", " ", message)
-
-    return message.strip()
-
-
-# ---------------- FIND RECIPE ----------------
-
-def get_recipe(message):
-
-    message = normalize_text(message)
-
-    if "bonjour" in message or "salut" in message:
-        return None, "Bonjour ! Bienvenue dans notre livre de recettes."
-
-    if "merci" in message:
-        return None, "Avec plaisir ! Bon appetit !"
-
-    recipe_keywords = [
-        ("pain au chocolat", "pain_chocolat"),
-        ("pain chocolat", "pain_chocolat"),
-        ("pain perdu", "pain_perdu"),
-        ("crepe", "crepes"),
-        ("croissant", "croissants"),
-        ("brioche", "brioche"),
-        ("ratatouille", "ratatouille"),
-        ("quiche", "quiche"),
-        ("croque monsieur", "croque_monsieur"),
-        ("salade nicoise", "salade_nicoise"),
-        ("nicoise", "salade_nicoise"),
-        ("tian", "tian"),
-        ("madeleine", "madeleines"),
-        ("macaron", "macarons"),
-        ("tarte tatin", "tarte_tatin"),
-        ("eclair", "eclair"),
-        ("mousse au chocolat", "mousse_chocolat"),
-        ("mousse chocolat", "mousse_chocolat"),
-        ("soupe a l oignon", "soupe_oignon"),
-        ("soupe", "soupe_oignon"),
-        ("oignon", "soupe_oignon"),
-        ("gratin", "gratin"),
-        ("boeuf bourguignon", "boeuf_bourguignon"),
-        ("bourguignon", "boeuf_bourguignon"),
-        ("coq au vin", "coq_au_vin"),
-        ("veloute de potimarron", "veloute_potimarron"),
-        ("potimarron", "veloute_potimarron")
-    ]
-
-    for keyword, recipe_key in recipe_keywords:
-
-        if keyword in message:
-            return recipes[recipe_key], None
-
-    return None, "Desole, je ne connais pas encore cette recette."
-
-
-# ---------------- DISPLAY RECIPE ----------------
-
-def display_recipe(recipe):
-
-    st.divider()
-
-    left, right = st.columns([2, 1])
-
-    with left:
-
-        st.header(recipe["name"])
-
-        st.write("📂 **" + recipe["category"] + "**")
-
-        st.subheader("🥣 Ingrédients")
-
-        for ingredient in recipe["ingredients"]:
-            st.write("• " + ingredient)
-
-        st.subheader("👩‍🍳 Préparation")
-
-        for number, step in enumerate(recipe["steps"], 1):
-            st.write(str(number) + ". " + step)
-
-        st.success("Bon appétit !")
-
-    with right:
-
-        st.image(
-            get_sized_image(recipe["image"]),
-            width="stretch"
-        )
-
-
-# ---------------- SMART INGREDIENT FINDER ----------------
-def find_recipes_by_ingredients(user_ingredients):
-
-    available_ingredients = [
-        normalize_text(item)
-        for item in user_ingredients.split(",")
-        if normalize_text(item)
-    ]
-
-    results = []
-
-    # Ignore common French ingredient description words
-    ignored_words = {
-        "de", "du", "des", "la", "le", "les", "d",
-        "g", "kg", "ml", "l", "un", "une"
+recipes = {
+
+    # =================================
+    # PETIT-DÉJEUNER - BREAKFAST
+    # =================================
+
+    "crepes": {
+        "name": "Les crêpes",
+        "category": "Petit-déjeuner",
+        "image": "crepes.jpg",
+        "ingredients": [
+            "250 g de farine",
+            "3 œufs",
+            "500 ml de lait",
+            "2 cuillères à soupe de sucre",
+            "1 cuillère à soupe de beurre"
+        ],
+        "steps": [
+            "Mélangez la farine et le sucre.",
+            "Ajoutez les œufs.",
+            "Ajoutez lentement le lait.",
+            "Ajoutez le beurre fondu et mélangez.",
+            "Faites chauffer une poêle.",
+            "Versez la pâte dans la poêle.",
+            "Faites cuire les deux côtés jusqu'à ce qu'ils soient dorés."
+        ]
+    },
+
+    "croissants": {
+        "name": "Les croissants",
+        "category": "Petit-déjeuner",
+        "image": "croissants.jpg",
+        "ingredients": [
+            "500 g de farine",
+            "250 ml de lait",
+            "50 g de sucre",
+            "10 g de levure",
+            "250 g de beurre",
+            "1 œuf"
+        ],
+        "steps": [
+            "Mélangez la farine, le sucre et la levure.",
+            "Ajoutez le lait.",
+            "Pétrissez la pâte.",
+            "Ajoutez le beurre.",
+            "Laissez reposer la pâte.",
+            "Formez les croissants.",
+            "Faites cuire au four jusqu'à ce qu'ils soient dorés."
+        ]
+    },
+
+    "pain_perdu": {
+        "name": "Le pain perdu",
+        "category": "Petit-déjeuner",
+        "image": "pain_perdu.jpg",
+        "ingredients": [
+            "4 tranches de pain",
+            "2 œufs",
+            "150 ml de lait",
+            "2 cuillères à soupe de sucre",
+            "1 cuillère à café de vanille",
+            "Un peu de beurre"
+        ],
+        "steps": [
+            "Battez les œufs dans un bol.",
+            "Ajoutez le lait, le sucre et la vanille.",
+            "Trempez les tranches de pain dans le mélange.",
+            "Faites fondre le beurre dans une poêle.",
+            "Faites cuire les tranches des deux côtés.",
+            "Servez chaud."
+        ]
+    },
+
+    "pain_chocolat": {
+        "name": "Le pain au chocolat",
+        "category": "Petit-déjeuner",
+        "image": "pain_chocolat.jpg",
+        "ingredients": [
+            "1 pâte feuilletée",
+            "100 g de chocolat",
+            "1 œuf"
+        ],
+        "steps": [
+            "Préchauffez le four.",
+            "Coupez la pâte en rectangles.",
+            "Placez le chocolat sur la pâte.",
+            "Roulez la pâte.",
+            "Badigeonnez avec l'œuf battu.",
+            "Faites cuire au four jusqu'à ce qu'ils soient dorés."
+        ]
+    },
+
+    "brioche": {
+        "name": "La brioche",
+        "category": "Petit-déjeuner",
+        "image": "brioche.jpg",
+        "ingredients": [
+            "300 g de farine",
+            "50 g de sucre",
+            "2 œufs",
+            "100 g de beurre",
+            "100 ml de lait",
+            "1 sachet de levure"
+        ],
+        "steps": [
+            "Mélangez la farine, le sucre et la levure.",
+            "Ajoutez les œufs et le lait.",
+            "Mélangez bien.",
+            "Ajoutez le beurre.",
+            "Laissez reposer la pâte.",
+            "Placez la pâte dans un moule.",
+            "Faites cuire au four jusqu'à ce que la brioche soit dorée."
+        ]
+    },
+
+
+    # =================================
+    # DÉJEUNER - LUNCH
+    # =================================
+
+    "ratatouille": {
+        "name": "La ratatouille",
+        "category": "Déjeuner",
+        "image": "ratatouille.jpg",
+        "ingredients": [
+            "1 aubergine",
+            "2 courgettes",
+            "2 tomates",
+            "1 oignon",
+            "1 poivron",
+            "Huile d'olive",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Lavez et coupez les légumes.",
+            "Faites chauffer l'huile d'olive dans une poêle.",
+            "Faites cuire l'oignon et le poivron.",
+            "Ajoutez l'aubergine et les courgettes.",
+            "Ajoutez les tomates.",
+            "Ajoutez le sel et le poivre.",
+            "Faites cuire jusqu'à ce que les légumes soient tendres."
+        ]
+    },
+
+    "quiche": {
+        "name": "La quiche lorraine",
+        "category": "Déjeuner",
+        "image": "quiche.jpg",
+        "ingredients": [
+            "1 pâte brisée",
+            "200 g de lardons",
+            "3 œufs",
+            "200 ml de crème",
+            "100 g de fromage",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Préchauffez le four.",
+            "Placez la pâte dans un moule.",
+            "Faites cuire les lardons.",
+            "Mélangez les œufs et la crème.",
+            "Ajoutez le fromage, le sel et le poivre.",
+            "Ajoutez les lardons.",
+            "Versez le mélange sur la pâte.",
+            "Faites cuire au four jusqu'à ce que la quiche soit dorée."
+        ]
+    },
+
+    "croque_monsieur": {
+        "name": "Le croque-monsieur",
+        "category": "Déjeuner",
+        "image": "croque_monsieur.jpg",
+        "ingredients": [
+            "4 tranches de pain de mie",
+            "2 tranches de jambon",
+            "100 g de fromage râpé",
+            "2 cuillères à soupe de beurre",
+            "2 cuillères à soupe de crème"
+        ],
+        "steps": [
+            "Préchauffez le four.",
+            "Beurrez les tranches de pain.",
+            "Placez le jambon sur deux tranches.",
+            "Ajoutez le fromage.",
+            "Fermez les sandwichs.",
+            "Ajoutez un peu de crème et de fromage sur le dessus.",
+            "Faites cuire au four jusqu'à ce que le fromage fonde."
+        ]
+    },
+
+    "salade_nicoise": {
+        "name": "La salade niçoise",
+        "category": "Déjeuner",
+        "image": "salade_nicoise.jpg",
+        "ingredients": [
+            "2 tomates",
+            "1 concombre",
+            "2 œufs",
+            "1 boîte de thon",
+            "Olives noires",
+            "Salade verte",
+            "Huile d'olive",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Lavez les légumes.",
+            "Coupez les tomates et le concombre.",
+            "Faites cuire les œufs.",
+            "Coupez les œufs en quartiers.",
+            "Placez la salade dans un grand bol.",
+            "Ajoutez les légumes, le thon et les olives.",
+            "Ajoutez les œufs.",
+            "Assaisonnez avec l'huile d'olive, le sel et le poivre."
+        ]
+    },
+
+    "tian": {
+        "name": "Le tian provençal",
+        "category": "Déjeuner",
+        "image": "tian.jpg",
+        "ingredients": [
+            "2 courgettes",
+            "2 tomates",
+            "1 aubergine",
+            "1 oignon",
+            "Huile d'olive",
+            "Herbes de Provence",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Préchauffez le four.",
+            "Lavez les légumes.",
+            "Coupez les légumes en rondelles.",
+            "Coupez l'oignon.",
+            "Placez les légumes dans un plat.",
+            "Ajoutez l'huile d'olive et les herbes.",
+            "Ajoutez le sel et le poivre.",
+            "Faites cuire au four jusqu'à ce que les légumes soient tendres."
+        ]
+    },
+
+
+    # =================================
+    # GOÛTER - SNACKS
+    # =================================
+
+    "madeleines": {
+        "name": "Les madeleines",
+        "category": "Goûter",
+        "image": "madeleines.jpg",
+        "ingredients": [
+            "150 g de farine",
+            "100 g de sucre",
+            "2 œufs",
+            "100 g de beurre",
+            "1 cuillère à café de levure",
+            "1 cuillère à café de vanille"
+        ],
+        "steps": [
+            "Mélangez les œufs et le sucre.",
+            "Ajoutez la farine et la levure.",
+            "Ajoutez le beurre fondu.",
+            "Ajoutez la vanille.",
+            "Versez la pâte dans les moules.",
+            "Faites cuire au four jusqu'à ce que les madeleines soient dorées."
+        ]
+    },
+
+    "macarons": {
+        "name": "Les macarons",
+        "category": "Goûter",
+        "image": "macarons.jpg",
+        "ingredients": [
+            "100 g de poudre d'amandes",
+            "100 g de sucre glace",
+            "100 g de sucre",
+            "2 blancs d'œufs",
+            "Colorant alimentaire"
+        ],
+        "steps": [
+            "Mélangez la poudre d'amandes et le sucre glace.",
+            "Battez les blancs d'œufs.",
+            "Ajoutez le sucre.",
+            "Mélangez les deux préparations.",
+            "Formez les macarons.",
+            "Laissez reposer.",
+            "Faites cuire au four."
+        ]
+    },
+
+    "tarte_tatin": {
+        "name": "La tarte Tatin",
+        "category": "Goûter",
+        "image": "tarte_tatin.jpg",
+        "ingredients": [
+            "1 pâte feuilletée",
+            "4 pommes",
+            "100 g de sucre",
+            "50 g de beurre"
+        ],
+        "steps": [
+            "Préchauffez le four.",
+            "Épluchez et coupez les pommes.",
+            "Faites fondre le beurre dans une poêle.",
+            "Ajoutez le sucre et les pommes.",
+            "Placez les pommes dans un moule.",
+            "Couvrez avec la pâte.",
+            "Faites cuire au four jusqu'à ce que la pâte soit dorée.",
+            "Retournez la tarte avec précaution après la cuisson."
+        ]
+    },
+
+    "eclair": {
+        "name": "L'éclair au chocolat",
+        "category": "Goûter",
+        "image": "eclair.jpg",
+        "ingredients": [
+            "100 g de farine",
+            "2 œufs",
+            "50 g de beurre",
+            "100 ml d'eau",
+            "100 g de chocolat",
+            "100 ml de lait",
+            "50 g de sucre"
+        ],
+        "steps": [
+            "Préchauffez le four.",
+            "Faites chauffer l'eau et le beurre.",
+            "Ajoutez la farine et mélangez.",
+            "Ajoutez les œufs.",
+            "Formez les éclairs sur une plaque.",
+            "Faites cuire au four.",
+            "Préparez une crème au chocolat.",
+            "Remplissez les éclairs avec la crème."
+        ]
+    },
+
+    "mousse_chocolat": {
+        "name": "La mousse au chocolat",
+        "category": "Goûter",
+        "image": "mousse_chocolat.jpg",
+        "ingredients": [
+            "200 g de chocolat",
+            "3 œufs",
+            "30 g de sucre",
+            "1 pincée de sel"
+        ],
+        "steps": [
+            "Faites fondre le chocolat.",
+            "Séparez les blancs et les jaunes d'œufs.",
+            "Mélangez les jaunes avec le chocolat.",
+            "Battez les blancs avec le sel.",
+            "Ajoutez doucement les blancs au chocolat.",
+            "Versez la mousse dans des verres.",
+            "Placez au réfrigérateur pendant quelques heures."
+        ]
+    },
+
+
+    # =================================
+    # DÎNER - DINNER
+    # =================================
+
+    "soupe_oignon": {
+        "name": "La soupe à l'oignon",
+        "category": "Dîner",
+        "image": "soupe.jpg",
+        "ingredients": [
+            "4 oignons",
+            "1 litre de bouillon",
+            "50 g de beurre",
+            "Pain",
+            "Fromage râpé",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Épluchez et coupez les oignons.",
+            "Faites fondre le beurre.",
+            "Faites cuire les oignons.",
+            "Ajoutez le bouillon.",
+            "Ajoutez le sel et le poivre.",
+            "Faites cuire la soupe.",
+            "Servez avec du pain et du fromage."
+        ]
+    },
+
+    "gratin": {
+        "name": "Le gratin dauphinois",
+        "category": "Dîner",
+        "image": "gratin.jpg",
+        "ingredients": [
+            "1 kg de pommes de terre",
+            "500 ml de lait",
+            "200 ml de crème",
+            "1 gousse d'ail",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Épluchez et coupez les pommes de terre.",
+            "Frottez un plat avec l'ail.",
+            "Placez les pommes de terre dans le plat.",
+            "Ajoutez le lait et la crème.",
+            "Ajoutez le sel et le poivre.",
+            "Faites cuire au four jusqu'à ce que les pommes de terre soient dorées."
+        ]
+    },
+
+    "boeuf_bourguignon": {
+        "name": "Le bœuf bourguignon",
+        "category": "Dîner",
+        "image": "boeuf_bourguignon.jpg",
+        "ingredients": [
+            "500 g de bœuf",
+            "2 carottes",
+            "1 oignon",
+            "200 g de champignons",
+            "500 ml de bouillon",
+            "1 cuillère à soupe de farine",
+            "Huile d'olive",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Coupez le bœuf en morceaux.",
+            "Épluchez et coupez les légumes.",
+            "Faites chauffer l'huile dans une casserole.",
+            "Faites cuire le bœuf et l'oignon.",
+            "Ajoutez les carottes et les champignons.",
+            "Ajoutez la farine et mélangez.",
+            "Versez le bouillon.",
+            "Laissez cuire doucement jusqu'à ce que la viande soit tendre."
+        ]
+    },
+
+    "coq_au_vin": {
+        "name": "Le coq au vin",
+        "category": "Dîner",
+        "image": "coq_au_vin.jpg",
+        "ingredients": [
+            "500 g de poulet",
+            "2 carottes",
+            "1 oignon",
+            "200 g de champignons",
+            "500 ml de bouillon",
+            "1 cuillère à soupe de farine",
+            "Huile d'olive",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Coupez les légumes.",
+            "Faites chauffer l'huile dans une casserole.",
+            "Faites cuire le poulet et l'oignon.",
+            "Ajoutez les carottes et les champignons.",
+            "Ajoutez la farine et mélangez.",
+            "Versez le bouillon.",
+            "Ajoutez le sel et le poivre.",
+            "Laissez cuire jusqu'à ce que le poulet soit bien cuit."
+        ]
+    },
+
+    "veloute_potimarron": {
+        "name": "Le velouté de potimarron",
+        "category": "Dîner",
+        "image": "veloute_potimarron.jpg",
+        "ingredients": [
+            "500 g de potimarron",
+            "1 pomme de terre",
+            "1 oignon",
+            "500 ml de bouillon",
+            "100 ml de crème",
+            "Sel et poivre"
+        ],
+        "steps": [
+            "Lavez et coupez le potimarron.",
+            "Épluchez la pomme de terre et l'oignon.",
+            "Coupez les légumes en morceaux.",
+            "Placez les légumes dans une casserole.",
+            "Ajoutez le bouillon.",
+            "Faites cuire jusqu'à ce que les légumes soient tendres.",
+            "Mixez la soupe.",
+            "Ajoutez la crème, le sel et le poivre."
+        ]
     }
 
-    for recipe_key, recipe in recipes.items():
-
-        recipe_ingredients = [
-            normalize_text(ingredient)
-            for ingredient in recipe["ingredients"]
-        ]
-
-        matched = []
-
-        for user_item in available_ingredients:
-
-            # Search for the complete ingredient phrase
-            for recipe_ingredient in recipe_ingredients:
-
-                recipe_words = [
-                    word for word in recipe_ingredient.split()
-                    if word not in ignored_words
-                    and not word.isdigit()
-                ]
-
-                user_words = [
-                    word for word in user_item.split()
-                    if word not in ignored_words
-                ]
-
-                # Exact complete-word matching
-                if user_words and all(
-                    word in recipe_words
-                    for word in user_words
-                ):
-                    matched.append(user_item)
-                    break
-
-        if matched:
-
-            results.append({
-                "recipe": recipe,
-                "matched": matched,
-                "score": len(matched)
-            })
-
-    results.sort(
-        key=lambda item: item["score"],
-        reverse=True
-    )
-
-    return results
-
-
-# =========================================================
-# RECIPE MENU OR RECIPE VIEW
-# =========================================================
-
-if st.session_state.current_recipe is None:
-
-    st.subheader("📖 Nos recettes")
-
-    for category_name, recipe_keys in categories.items():
-
-        st.header(category_name)
-
-        # First row: 3 recipes
-        first_row = st.columns(3)
-
-        for index, recipe_key in enumerate(recipe_keys[:3]):
-
-            recipe = recipes[recipe_key]
-
-            with first_row[index]:
-
-                st.image(
-                    get_sized_image(recipe["image"]),
-                    width="stretch"
-                )
-
-                if st.button(
-                    recipe["name"],
-                    key="button_" + recipe_key,
-                    width="stretch"
-                ):
-
-                    select_recipe(recipe_key)
-                    st.rerun()
-
-        # Second row: remaining recipes
-        second_row = st.columns(3)
-
-        for index, recipe_key in enumerate(recipe_keys[3:]):
-
-            recipe = recipes[recipe_key]
-
-            with second_row[index]:
-
-                st.image(
-                    get_sized_image(recipe["image"]),
-                    width="stretch"
-                )
-
-                if st.button(
-                    recipe["name"],
-                    key="button_" + recipe_key,
-                    width="stretch"
-                ):
-
-                    select_recipe(recipe_key)
-                    st.rerun()
-
-else:
-
-    # ---------------- RECIPE DETAIL VIEW ----------------
-
-    if st.button("⬅️ Retour aux recettes"):
-
-        st.session_state.current_recipe = None
-        st.rerun()
-
-    display_recipe(st.session_state.current_recipe)
-
-
-# =========================================================
-# SMART INGREDIENT FINDER
-# =========================================================
-
-st.divider()
-
-st.subheader("🥗 Que puis-je cuisiner avec mes ingrédients ?")
-
-st.write("Entrez les ingrédients disponibles chez vous.")
-
-ingredient_input = st.text_input(
-    "Vos ingrédients",
-    placeholder="Exemple : oeufs, lait, farine"
-)
-
-if st.button("🔍 Trouver des recettes"):
-
-    if ingredient_input.strip():
-
-        st.session_state.ingredient_results = (
-            find_recipes_by_ingredients(ingredient_input)
-        )
-
-        st.session_state.selected_ingredient_recipe = None
-        st.session_state.ingredient_searched = True
-
-    else:
-
-        st.session_state.ingredient_results = []
-        st.session_state.selected_ingredient_recipe = None
-        st.session_state.ingredient_searched = False
-
-        st.warning("Veuillez entrer vos ingrédients.")
-
-
-# ---------------- DISPLAY SEARCH RESULTS ----------------
-
-if st.session_state.ingredient_searched:
-
-    if st.session_state.ingredient_results:
-
-        st.success(
-            str(len(st.session_state.ingredient_results))
-            + " recette(s) correspondante(s) trouvée(s) !"
-        )
-
-        for item in st.session_state.ingredient_results:
-
-            recipe = item["recipe"]
-
-            st.write("---")
-
-            st.subheader("🍽️ " + recipe["name"])
-
-            st.write(
-                "Ingrédients correspondants : "
-                + ", ".join(item["matched"])
-            )
-
-            st.write(
-                f"Correspondances : {item['score']}"
-            )
-
-            if st.button(
-                "Voir la recette",
-                key="ingredient_" + recipe["name"]
-            ):
-
-                if st.session_state.selected_ingredient_recipe == recipe["name"]:
-                    st.session_state.selected_ingredient_recipe = None
-                else:
-                    st.session_state.selected_ingredient_recipe = recipe["name"]
-
-            # Display selected recipe below its name
-
-            if st.session_state.selected_ingredient_recipe == recipe["name"]:
-
-                display_recipe(recipe)
-
-    else:
-
-        st.warning(
-            "Aucune recette correspondante trouvée ! "
-            "Essayez d'autres ingrédients."
-        )
-
-else:
-
-    st.info(
-        "Entrez vos ingrédients pour découvrir des recettes."
-    )
-
-
-# =========================================================
-# CHATBOT
-# =========================================================
-
-st.divider()
-
-st.subheader("💬 Parlez avec le livre de recettes")
-
-
-# ---------------- TEXT INPUT ----------------
-
-user_input = st.chat_input(
-    "Écrivez le nom d'une recette..."
-)
-
-if user_input:
-
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_input
-    })
-
-    recipe, response = get_recipe(user_input)
-
-    if recipe:
-
-        st.session_state.current_recipe = recipe
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": "Voici la recette : " + recipe["name"]
-        })
-
-    else:
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response
-        })
-
-    st.rerun()
-
-
-# ---------------- DISPLAY CHAT HISTORY ----------------
-
-for message in st.session_state.messages:
-
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
-
-
-# =========================================================
-# VOICE INPUT
-# =========================================================
-
-st.write("🎤 **Parlez en français :**")
-
-audio = audiorecorder(
-    "🎤 Parler",
-    "⏹️ Arrêter"
-)
-
-if len(audio) > 0:
-
-    audio_id = hashlib.md5(
-        audio.raw_data
-    ).hexdigest()
-
-    if audio_id != st.session_state.last_audio:
-
-        st.session_state.last_audio = audio_id
-
-        recognizer = sr.Recognizer()
-
-        audio_data = sr.AudioData(
-            audio.raw_data,
-            audio.frame_rate,
-            audio.sample_width
-        )
-
-        try:
-
-            voice_text = recognizer.recognize_google(
-                audio_data,
-                language="fr-FR"
-            )
-
-            st.session_state.messages.append({
-                "role": "user",
-                "content": "🎤 " + voice_text
-            })
-
-            recipe, response = get_recipe(voice_text)
-
-            if recipe:
-
-                st.session_state.current_recipe = recipe
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "Voici la recette : " + recipe["name"]
-                })
-
-            else:
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response
-                })
-
-            st.rerun()
-
-        except sr.UnknownValueError:
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "Desole, je n'ai pas compris."
-            })
-
-            st.rerun()
-
-        except sr.RequestError:
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "Erreur de connexion au service vocal."
-            })
-
-            st.rerun()
+}
