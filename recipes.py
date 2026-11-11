@@ -8,7 +8,7 @@ recipes = {
     "crepes": {
         "name": "Les crêpes",
         "category": "Petit-déjeuner",
-        "image": "images/crepes.jpg",
+        "image": "crepes.jpg",
         "ingredients": [
             "250 g de farine",
             "3 œufs",
@@ -30,7 +30,7 @@ recipes = {
     "croissants": {
         "name": "Les croissants",
         "category": "Petit-déjeuner",
-        "image": "images/croissants.jpg",
+        "image": "croissants.jpg",
         "ingredients": [
             "500 g de farine",
             "250 ml de lait",
@@ -53,7 +53,7 @@ recipes = {
     "pain_perdu": {
         "name": "Le pain perdu",
         "category": "Petit-déjeuner",
-        "image": "images/pain_perdu.jpg",
+        "image": "pain_perdu.jpg",
         "ingredients": [
             "4 tranches de pain",
             "2 œufs",
@@ -75,7 +75,7 @@ recipes = {
     "pain_chocolat": {
         "name": "Le pain au chocolat",
         "category": "Petit-déjeuner",
-        "image": "images/pain_chocolat.jpg",
+        "image": "pain_chocolat.jpg",
         "ingredients": [
             "1 pâte feuilletée",
             "100 g de chocolat",
@@ -94,7 +94,7 @@ recipes = {
     "brioche": {
         "name": "La brioche",
         "category": "Petit-déjeuner",
-        "image": "images/brioche.jpg",
+        "image": "brioche.jpg",
         "ingredients": [
             "300 g de farine",
             "50 g de sucre",
@@ -122,7 +122,7 @@ recipes = {
     "ratatouille": {
         "name": "La ratatouille",
         "category": "Déjeuner",
-        "image": "images/ratatouille.jpg",
+        "image": "ratatouille.jpg",
         "ingredients": [
             "1 aubergine",
             "2 courgettes",
@@ -146,7 +146,7 @@ recipes = {
     "quiche": {
         "name": "La quiche lorraine",
         "category": "Déjeuner",
-        "image": "images/quiche.jpg",
+        "image": "quiche.jpg",
         "ingredients": [
             "1 pâte brisée",
             "200 g de lardons",
@@ -170,7 +170,7 @@ recipes = {
     "croque_monsieur": {
         "name": "Le croque-monsieur",
         "category": "Déjeuner",
-        "image": "images/croque_monsieur.jpg",
+        "image": "croque_monsieur.jpg",
         "ingredients": [
             "4 tranches de pain de mie",
             "2 tranches de jambon",
@@ -192,7 +192,7 @@ recipes = {
     "salade_nicoise": {
         "name": "La salade niçoise",
         "category": "Déjeuner",
-        "image": "images/salade_nicoise.jpg",
+        "image": "salade_nicoise.jpg",
         "ingredients": [
             "2 tomates",
             "1 concombre",
@@ -218,7 +218,7 @@ recipes = {
     "tian": {
         "name": "Le tian provençal",
         "category": "Déjeuner",
-        "image": "images/tian.jpg",
+        "image": "tian.jpg",
         "ingredients": [
             "2 courgettes",
             "2 tomates",
@@ -248,7 +248,7 @@ recipes = {
     "madeleines": {
         "name": "Les madeleines",
         "category": "Goûter",
-        "image": "images/madeleines.jpg",
+        "image": "madeleines.jpg",
         "ingredients": [
             "150 g de farine",
             "100 g de sucre",
@@ -270,7 +270,7 @@ recipes = {
     "macarons": {
         "name": "Les macarons",
         "category": "Goûter",
-        "image": "images/macarons.jpg",
+        "image": "macarons.jpg",
         "ingredients": [
             "100 g de poudre d'amandes",
             "100 g de sucre glace",
@@ -292,7 +292,7 @@ recipes = {
     "tarte_tatin": {
         "name": "La tarte Tatin",
         "category": "Goûter",
-        "image": "images/tarte_tatin.jpg",
+        "image": "tarte_tatin.jpg",
         "ingredients": [
             "1 pâte feuilletée",
             "4 pommes",
@@ -314,7 +314,7 @@ recipes = {
     "eclair": {
         "name": "L'éclair au chocolat",
         "category": "Goûter",
-        "image": "images/eclair.jpg",
+        "image": "eclair.jpg",
         "ingredients": [
             "100 g de farine",
             "2 œufs",
@@ -339,7 +339,7 @@ recipes = {
     "mousse_chocolat": {
         "name": "La mousse au chocolat",
         "category": "Goûter",
-        "image": "images/mousse_chocolat.jpg",
+        "image": "mousse_chocolat.jpg",
         "ingredients": [
             "200 g de chocolat",
             "3 œufs",
@@ -365,7 +365,7 @@ recipes = {
     "soupe_oignon": {
         "name": "La soupe à l'oignon",
         "category": "Dîner",
-        "image": "images/soupe.jpg",
+        "image": "soupe.jpg",
         "ingredients": [
             "4 oignons",
             "1 litre de bouillon",
@@ -388,7 +388,7 @@ recipes = {
     "gratin": {
         "name": "Le gratin dauphinois",
         "category": "Dîner",
-        "image": "images/gratin.jpg",
+        "image": "gratin.jpg",
         "ingredients": [
             "1 kg de pommes de terre",
             "500 ml de lait",
@@ -409,7 +409,7 @@ recipes = {
     "boeuf_bourguignon": {
         "name": "Le bœuf bourguignon",
         "category": "Dîner",
-        "image": "images/boeuf_bourguignon.jpg",
+        "image": "boeuf_bourguignon.jpg",
         "ingredients": [
             "500 g de bœuf",
             "2 carottes",
@@ -435,7 +435,7 @@ recipes = {
     "coq_au_vin": {
         "name": "Le coq au vin",
         "category": "Dîner",
-        "image": "images/coq_au_vin.jpg",
+        "image": "coq_au_vin.jpg",
         "ingredients": [
             "500 g de poulet",
             "2 carottes",
@@ -461,7 +461,7 @@ recipes = {
     "veloute_potimarron": {
         "name": "Le velouté de potimarron",
         "category": "Dîner",
-        "image": "images/veloute_potimarron.jpg",
+        "image": "veloute_potimarron.jpg",
         "ingredients": [
             "500 g de potimarron",
             "1 pomme de terre",
